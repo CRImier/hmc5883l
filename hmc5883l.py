@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # vim: set fileencoding=UTF-8 :
 
-# HMC5888L Magnetometer (Digital Compass) wrapper class
-# Based on https://github.com/rm-hull/hmc5883l,
+# HMC5883L Magnetometer (Digital Compass) wrapper class
+# Based on https://github.com/rm-hull/hmc5883l
 
 from pyb import I2C
 import math
@@ -77,6 +76,6 @@ class HMC5883L():
         return "Axis X: " + str(x) + "\n" \
                "Axis Y: " + str(y) + "\n" \
                "Axis Z: " + str(z) + "\n" \
-               "Heading: " + str(self.degrees(self.heading())) + "\n"
+               "Heading: " + str(self.heading()) + "\n"
 
 #"Declination: " + self.degrees(self.declination()) + "\n" \ #It gives an error on MicroPython and I've yet to see how it's supposed to work at all
