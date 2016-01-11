@@ -11,7 +11,9 @@ Usage example:
 34.45
 ```
 
-You might want to tinker with 'gauss' value in constructor if you see that the output values do not correspond to the way sensor is moved. Alternatively, beware of magnets - this driver does not do calibration =(
+* Uses continuous measurement mode. Single measurement mode can be easily implemented, though.
+* You might want to tinker with 'gauss' value in constructor if you see that the output values do not correspond to the way sensor is moved. 
+* Beware of magnets - this driver does not do calibration =(
 
 References
 ----------
