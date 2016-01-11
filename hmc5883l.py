@@ -2,47 +2,40 @@
 # vim: set fileencoding=UTF-8 :
 
 # HMC5888L Magnetometer (Digital Compass) wrapper class
-# Based on https://bitbucket.org/thinkbowl/i2clibraries/src/14683feb0f96,
-# but uses smbus rather than quick2wire and sets some different init
-# params.
+# Based on https://github.com/rm-hull/hmc5883l,
 
-import smbus
+from pyb import I2C
 import math
-import time
-import sys
+from array import array
 
-class hmc5883l:
-
+class HMC5883L():
+    
     __scales = {
-        0.88: [0, 0.73],
-        1.30: [1, 0.92],
-        1.90: [2, 1.22],
-        2.50: [3, 1.52],
-        4.00: [4, 2.27],
-        4.70: [5, 2.56],
-        5.60: [6, 3.03],
-        8.10: [7, 4.35],
-    }
-
-    def __init__(self, port=1, address=0x1E, gauss=1.3, declination=(0,0)):
-        self.bus = smbus.SMBus(port)
+        "0.88": [0, 0.73],
+        "1.3": [1, 0.92],
+        "1.9": [2, 1.22],
+        "2.5": [3, 1.52],
+        "4.0": [4, 2.27],
+        "4.7": [5, 2.56],
+        "5.6": [6, 3.03],
+        "8.1": [7, 4.35]}
+        
+    def __init__(self, port=2, address=30, gauss="1.3", declination=(0,0)):
+        self.bus = I2C(port, I2C.MASTER, baudrate=100000)
         self.address = address
-
-        (degrees, minutes) = declination
+        degrees, minutes = declination
         self.__declDegrees = degrees
         self.__declMinutes = minutes
         self.__declination = (degrees + minutes / 60) * math.pi / 180
-
-        (reg, self.__scale) = self.__scales[gauss]
-        self.bus.write_byte_data(self.address, 0x00, 0x70) # 8 Average, 15 Hz, normal measurement
-        self.bus.write_byte_data(self.address, 0x01, reg << 5) # Scale
-        self.bus.write_byte_data(self.address, 0x02, 0x00) # Continuous measurement
-
+        reg, self.__scale = self.__scales[gauss]
+        self.bus.mem_write(0x70, self.address, 0x00) # 8 Average, 15 Hz, normal measurement 
+        self.bus.mem_write(reg << 5, self.address, 0x01) # Scale 
+        self.bus.mem_write(0x00, self.address, 0x02) # Continuous measurement 
+    
     def declination(self):
         return (self.__declDegrees, self.__declMinutes)
-
-    def twos_complement(self, val, len):
-        # Convert twos compliment to integer
+    
+    def twos_complement(self, val, len): # Convert two's complement to integer
         if (val & (1 << len - 1)):
             val = val - (1<<len)
         return val
@@ -53,26 +46,23 @@ class hmc5883l:
         return round(val * self.__scale, 4)
 
     def axes(self):
-        data = self.bus.read_i2c_block_data(self.address, 0x00)
-        #print map(hex, data)
-        x = self.__convert(data, 3)
-        y = self.__convert(data, 7)
-        z = self.__convert(data, 5)
+        data = array('B', [0]*6)
+        self.bus.mem_read(data, self.address, 0x03) #Reading just the necessary registers instead of the whole memory as it was in rm-hull's version
+        x = self.__convert(data, 0)
+        y = self.__convert(data, 4)
+        z = self.__convert(data, 2)
         return (x,y,z)
 
     def heading(self):
         (x, y, z) = self.axes()
         headingRad = math.atan2(y, x)
         headingRad += self.__declination
-
         # Correct for reversed heading
         if headingRad < 0:
             headingRad += 2 * math.pi
-
         # Check for wrap and compensate
         elif headingRad > 2 * math.pi:
             headingRad -= 2 * math.pi
-
         # Convert to degrees from radians
         headingDeg = headingRad * 180 / math.pi
         return headingDeg
@@ -87,14 +77,6 @@ class hmc5883l:
         return "Axis X: " + str(x) + "\n" \
                "Axis Y: " + str(y) + "\n" \
                "Axis Z: " + str(z) + "\n" \
-               "Declination: " + self.degrees(self.declination()) + "\n" \
-               "Heading: " + self.degrees(self.heading()) + "\n"
+               "Heading: " + str(self.degrees(self.heading())) + "\n"
 
-if __name__ == "__main__":
-    # http://magnetic-declination.com/Great%20Britain%20(UK)/Harrogate#
-    compass = hmc5883l(gauss = 4.7, declination = (-2,5))
-    while True:
-        sys.stdout.write("\rHeading: " + str(compass.degrees(compass.heading())) + "     ")
-        sys.stdout.flush()
-        time.sleep(0.5)
-
+#"Declination: " + self.degrees(self.declination()) + "\n" \ #It gives an error on MicroPython and I've yet to see how it's supposed to work at all
